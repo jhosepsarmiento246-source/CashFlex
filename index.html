@@ -103,7 +103,7 @@ label,.lbl{display:block;font-size:12px;font-weight:700;color:var(--mute);margin
 <body>
 <div id="auth" hidden></div>
 <div id="app" hidden>
-  <div class="tb"><button id="menu" aria-label="Menú" data-i="menu"></button><b>Mis Cuentas</b><button id="sy" aria-label="Estado de la nube"></button></div>
+  <div class="tb"><button id="menu" aria-label="Menú" data-i="menu"></button><b>Mis Cuentas</b></div>
   <div class="w" style="padding-bottom:0"><div id="bar"><div class="bal"><small>Balance de todas tus cuentas</small><b id="bal"></b></div><div id="tt"></div></div></div>
   <div class="w" id="main"></div>
   <nav id="nav"><button data-v="res"><i data-i="pie"></i>Inicio</button><button data-v="ops"><i data-i="receipt"></i>Operaciones</button><button data-v="gra"><i data-i="chart"></i>Gráficos</button><button data-v="cta"><i data-i="wallet"></i>Cuentas</button></nav>
@@ -111,7 +111,6 @@ label,.lbl{display:block;font-size:12px;font-weight:700;color:var(--mute);margin
 </div>
 <div id="dr"><div id="dp"></div></div>
 <div id="ov"><div id="box" role="dialog" aria-modal="true"></div></div>
-<script src="config.js"></script>
 <script>
 const $=s=>document.querySelector(s),esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const ls={get:k=>{try{return localStorage.getItem(k)}catch(e){return null}},set:(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}},del:k=>{try{localStorage.removeItem(k)}catch(e){}}};
@@ -128,7 +127,7 @@ const EM=['cart','food','coffee','bus','car','house','bulb','wifi','film','heart
 const AEM=['wallet','card','bank','cash','coin','house','car','plane'],CURS=['COP','USD','MXN','EUR','ARS','PEN','CLP','BRL'];
 let D,UID,V;
 const dflt=()=>({cur:'COP',accounts:[{id:uid(),name:'Cuenta principal',emoji:'👛',color:'#10B981',init:0}],tx:[],cats:[['🍎','Alimentación','gasto','#10B981'],['🚌','Transporte','gasto','#3B82F6'],['🏠','Hogar','gasto','#F59E0B'],['💡','Servicios','gasto','#A855F7'],['💊','Salud','gasto','#EF4444'],['🎬','Ocio','gasto','#EC4899'],['🛍️','Compras','gasto','#14B8A6'],['💼','Salario','ingreso','#10B981'],['💸','Ventas','ingreso','#F59E0B'],['🎁','Regalo','ingreso','#EC4899']].map(([emoji,name,type,color])=>({id:uid(),emoji,name,type,color}))});
-const save=()=>{ls.set('mc2_d_'+UID,JSON.stringify(D));schedSync()};
+const save=()=>{ls.set('mc3_data',JSON.stringify(D));ls.set('mc3_saved',String(Date.now()))};
 const money=n=>{try{return new Intl.NumberFormat('es-CO',{style:'currency',currency:D.cur,maximumFractionDigits:(D.cur==='COP'||D.cur==='CLP')?0:2}).format(n)}catch(e){return'$'+n}};
 const catOf=id=>D.cats.find(c=>c.id===id)||{name:'Sin categoría',icon:'tag',color:'#94A3B8'},accOf=id=>D.accounts.find(a=>a.id===id);
 const abal=a=>D.tx.reduce((s,t)=>t.acc===a.id?s+(t.type==='ingreso'?t.amt:-t.amt):s,a.init);
@@ -136,115 +135,35 @@ const inR=(a,b)=>D.tx.filter(t=>{const k=t.ts.slice(0,10);return k>=a&&k<=b&&(V.
 const hour=ts=>new Date(ts).toLocaleTimeString('es',{hour:'2-digit',minute:'2-digit'});
 function dayLabel(k){const t=new Date();if(k===dKey(t))return'Hoy';t.setDate(t.getDate()-1);if(k===dKey(t))return'Ayer';return parseD(k).toLocaleDateString('es',{weekday:'long',day:'numeric',month:'long'})}
 
-/* Cuentas de usuario (guardadas en el dispositivo, funcionan sin internet) */
-const U=()=>{try{return JSON.parse(ls.get('mc2_users'))||[]}catch(e){return[]}};
-async function H(p,s){if(window.crypto&&crypto.subtle){const d=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s+p));return[...new Uint8Array(d)].map(x=>x.toString(16).padStart(2,'0')).join('')}let h=5381;for(const c of s+p)h=(h*33^c.charCodeAt(0))>>>0;return''+h}
-function authView(mode){
-  $('#app').hidden=true;const a=$('#auth');a.hidden=false;
-  a.innerHTML=`<div class="logo">$</div><h1>Mis Cuentas</h1><p class="sub">Controla tus ingresos y gastos, con o sin internet.</p>
-  <div class="seg"><button data-m="in" class="${mode==='in'?'on g':''}">Entrar</button><button data-m="up" class="${mode==='up'?'on g':''}">Crear cuenta</button></div>
-  ${mode==='up'?'<label>Nombre<input id="u-n" autocomplete="name"></label>':''}
-  <label>Correo<input id="u-e" type="email" inputmode="email" autocomplete="email"></label>
-  <label>Contraseña<input id="u-p" type="password" autocomplete="${mode==='up'?'new-password':'current-password'}"></label>
-  ${mode==='in'&&ON?'<button class="link" id="forgot" style="width:100%;text-align:right">¿Olvidaste tu contraseña?</button>':''}
-  <p class="err" id="err"></p><button class="btn main" id="go">${mode==='in'?'Entrar':'Crear mi cuenta'}</button>
-  ${googleBtn()}
-  <p class="note">${ON?'Tus datos se guardan en este teléfono y se sincronizan cuando hay internet.':'Tus datos se guardan en este dispositivo y funcionan sin conexión.'}</p>`;
-  a.querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>authView(b.dataset.m));
-  a.onkeydown=e=>{if(e.key==='Enter')$('#go').click()};
-  if($('#forgot'))$('#forgot').onclick=()=>recoverView();
-  if($('#gg'))$('#gg').onclick=googleIn;
-  $('#go').onclick=async()=>{if(await srvAuth(mode))return;const e=$('#u-e').value.trim().toLowerCase(),p=$('#u-p').value,er=$('#err'),us=U();
-    if(!/^\S+@\S+\.\S+$/.test(e)){er.textContent='Escribe un correo válido.';return}
-    if(mode==='up'){const n=$('#u-n').value.trim();
-      if(!n){er.textContent='Escribe tu nombre.';return}
-      if(p.length<6){er.textContent='La contraseña debe tener 6 caracteres o más.';return}
-      if(us.some(x=>x.e===e)){er.textContent='Ese correo ya tiene cuenta. Entra con él.';return}
-      const s=uid()+uid(),u={id:uid(),n,e,s,h:await H(p,s)};us.push(u);ls.set('mc2_users',JSON.stringify(us));start(u.id)}
-    else{const u=us.find(x=>x.e===e);if(!u||u.h!==await H(p,u.s)){er.textContent='Correo o contraseña incorrectos.';return}start(u.id)}};
-}
-function start(id){UID=id;let d=null;try{d=JSON.parse(ls.get('mc2_d_'+id))}catch(e){}D=d&&d.accounts?d:dflt();migrate();genRec();if(!d)save();ls.set('mc2_ses',id);
-  V={view:'res',ty:'gasto',per:'mes',off:0,from:'',to:'',acc:'all',sort:'fecha'};$('#auth').hidden=true;$('#app').hidden=false;render();syncNow()}
-
-/* Servidor (Supabase), sincronización y menú lateral */
-const CFG=window.MC_CONFIG||{},ON=!!(CFG.url&&CFG.key);
-async function api(m,p,b,tok,x){const r=await fetch(CFG.url.replace(/\/$/,'')+p,{method:m,headers:{apikey:CFG.key,'Content-Type':'application/json',Authorization:'Bearer '+(tok||CFG.key),...(x||{})},body:b?JSON.stringify(b):undefined});
-  const t=await r.text();let j=null;try{j=t?JSON.parse(t):null}catch(e){}
-  if(!r.ok){const er=new Error((j&&(j.msg||j.error_description||j.message))||('HTTP '+r.status));er.status=r.status;throw er}return j}
-const setTok=(id,s)=>ls.set('mc2_tok_'+id,JSON.stringify({a:s.access_token,r:s.refresh_token,x:Date.now()+(s.expires_in||3600)*1000-60000}));
-async function getTok(){let t=null;try{t=JSON.parse(ls.get('mc2_tok_'+UID))}catch(e){}if(!t)return null;if(Date.now()<t.x)return t.a;
-  try{const s=await api('POST','/auth/v1/token?grant_type=refresh_token',{refresh_token:t.r});setTok(UID,s);return s.access_token}catch(e){if(e.status)ls.del('mc2_tok_'+UID);return null}}
-async function srvAfterLogin(s,pw,name){const id=s.user.id,us=U().filter(x=>x.id!==id),salt=uid()+uid();
-  us.push({id,n:name||(s.user.user_metadata&&s.user.user_metadata.name)||s.user.email.split('@')[0],e:s.user.email.toLowerCase(),s:salt,h:pw?await H(pw,salt):'',srv:1});
-  ls.set('mc2_users',JSON.stringify(us));setTok(id,s);
-  if(!ls.get('mc2_d_'+id)){try{const r=await api('GET','/rest/v1/user_data?select=data',null,s.access_token);if(r&&r[0]&&r[0].data)ls.set('mc2_d_'+id,JSON.stringify(r[0].data))}catch(e){}}
-  start(id)}
-async function srvAuth(mode){if(!ON)return false;
-  const e=$('#u-e').value.trim().toLowerCase(),p=$('#u-p').value,er=$('#err'),n=mode==='up'?$('#u-n').value.trim():'';
-  if(!/^\S+@\S+\.\S+$/.test(e)){er.textContent='Escribe un correo válido.';return true}
-  if(mode==='up'){if(!n){er.textContent='Escribe tu nombre.';return true}if(p.length<6){er.textContent='La contraseña debe tener 6 caracteres o más.';return true}}
-  er.textContent='Un momento…';
-  try{
-    if(mode==='up'){const s=await api('POST','/auth/v1/signup',{email:e,password:p,data:{name:n}});
-      if(!s.access_token){er.textContent='Revisa tu correo para confirmar la cuenta y luego entra.';return true}
-      await srvAfterLogin(s,p,n)}
-    else await srvAfterLogin(await api('POST','/auth/v1/token?grant_type=password',{email:e,password:p}),p);
-  }catch(x){
-    const loc=U().find(z=>z.e===e);
-    if(mode==='in'&&loc&&loc.h===await H(p,loc.s)&&(!x.status||!loc.srv)){start(loc.id);return true}
-    if(x.status)er.textContent=mode==='in'?'Correo o contraseña incorrectos.':(/regist/i.test(x.message)?'Ese correo ya tiene cuenta. Entra con él.':x.message);
-    else er.textContent=mode==='in'?'Sin internet. La primera vez en este teléfono necesitas conexión para entrar.':'Para crear la cuenta necesitas internet esta primera vez. Después funciona sin conexión.'}
-  return true}
-function recoverView(step,email){const a=$('#auth');
-  a.innerHTML=step==='code'?`<h1>Nueva contraseña</h1><p class="sub">Te enviamos un código de 6 dígitos a ${esc(email)}.</p><label>Código<input id="r-c" inputmode="numeric" maxlength="8" autocomplete="one-time-code"></label><label>Nueva contraseña<input id="r-p" type="password" autocomplete="new-password"></label><p class="err" id="err"></p><button class="btn main" id="go">Cambiar contraseña</button><button class="link" id="bk" style="width:100%;margin-top:10px">Volver</button>`
-  :`<h1>Recuperar contraseña</h1><p class="sub">Escribe tu correo y te enviaremos un código.</p><label>Correo<input id="r-e" type="email" inputmode="email" autocomplete="email"></label><p class="err" id="err"></p><button class="btn main" id="go">Enviar código</button><button class="link" id="bk" style="width:100%;margin-top:10px">Volver</button>`;
-  $('#bk').onclick=()=>authView('in');
-  $('#go').onclick=async()=>{const er=$('#err');
-    try{
-      if(step==='code'){const c=$('#r-c').value.trim(),p=$('#r-p').value;if(p.length<6){er.textContent='La contraseña debe tener 6 caracteres o más.';return}
-        er.textContent='Un momento…';const s=await api('POST','/auth/v1/verify',{type:'recovery',email,token:c});
-        await api('PUT','/auth/v1/user',{password:p},s.access_token);await srvAfterLogin(s,p)}
-      else{const e=$('#r-e').value.trim().toLowerCase();if(!/^\S+@\S+\.\S+$/.test(e)){er.textContent='Escribe un correo válido.';return}
-        er.textContent='Enviando…';await api('POST','/auth/v1/recover',{email:e});recoverView('code',e)}
-    }catch(x){er.textContent=x.status?(step==='code'?'El código no es válido o ya venció.':'No pudimos enviar el código. Intenta de nuevo en unos minutos.'):'Necesitas internet para recuperar la contraseña.'}}}
-const rmv=id=>{D.rm[id]=Date.now()};
-function merge(L,R){const rm={};[R.rm,L.rm].forEach(m=>Object.entries(m||{}).forEach(([k,v])=>rm[k]=Math.max(rm[k]||0,v)));
-  const mg=(a,b)=>{const m=new Map();[...(b||[]),...(a||[])].forEach(i=>{const o=m.get(i.id);if(!o||(i.u||0)>=(o.u||0))m.set(i.id,i)});return[...m.values()].filter(i=>!(i.id in rm&&rm[i.id]>=(i.u||0)))};
-  return{cur:(R.curU||0)>(L.curU||0)?R.cur:L.cur,curU:Math.max(L.curU||0,R.curU||0),accounts:mg(L.accounts,R.accounts),cats:mg(L.cats,R.cats),tx:mg(L.tx,R.tx),rec:mg(L.rec,R.rec),rem:mg(L.rem,R.rem),rm}}
-let SY='local',busy=0,again=0,tm;
-const SYT={ok:'Sincronizado con la nube',wait:'Cambios pendientes de subir',busy:'Sincronizando…',off:'Sin conexión: se guarda aquí y se sube cuando vuelva internet',local:'Datos guardados solo en este teléfono'},SYI={ok:'cloudok',wait:'clock',busy:'sync',off:'cloudoff',local:'phone'};
-const setSy=t=>{SY=t;const b=$('#sy');if(b)b.innerHTML=ico(SYI[t],20)};
-const isSrv=()=>{const u=U().find(x=>x.id===UID);return!!(ON&&u&&u.srv)};
-function schedSync(){if(!isSrv())return;clearTimeout(tm);setSy('wait');tm=setTimeout(syncNow,1500)}
-async function syncNow(){if(!isSrv()){setSy('local');return}if(busy){again=1;return}if(!navigator.onLine){setSy('off');return}
-  busy=1;setSy('busy');
-  try{const tok=await getTok();if(!tok)throw 0;
-    const r=await api('GET','/rest/v1/user_data?select=data',null,tok);
-    if(r&&r[0]&&r[0].data){D=merge(D,r[0].data)}migrate();ls.set('mc2_d_'+UID,JSON.stringify(D));
-    await api('POST','/rest/v1/user_data?on_conflict=user_id',{user_id:UID,data:D,updated_at:new Date().toISOString()},tok,{Prefer:'resolution=merge-duplicates,return=minimal'});
-    ls.set('mc2_ls_'+UID,String(Date.now()));setSy('ok');render()}catch(e){setSy('off')}
-  busy=0;if(again){again=0;syncNow()}}
-addEventListener('online',()=>syncNow());document.addEventListener('visibilitychange',()=>{if(!document.hidden&&D){genRec();render();syncNow()}});
+/* Inicio, bienvenida y menú lateral */
+const rmv=()=>{};
+function start(){let d=null;try{d=JSON.parse(ls.get('mc3_data'))}catch(e){}
+  if(!d||!d.accounts){try{d=JSON.parse(ls.get('mc2_d_'+ls.get('mc2_ses')))}catch(e){d=null}}
+  D=d&&d.accounts?d:dflt();migrate();
+  V={view:'res',ty:'gasto',per:'mes',off:0,from:'',to:'',acc:'all',sort:'fecha'};
+  $('#auth').hidden=true;$('#app').hidden=false;genRec();save();render()}
+function welcome(){const a=$('#auth');a.hidden=false;$('#app').hidden=true;
+  a.innerHTML=`<div class="logo">$</div><h1>Mis Cuentas</h1><p class="sub">Controla tus ingresos y gastos. Todo se guarda en tu teléfono y funciona sin internet.</p>
+  <label>¿Cómo te llamas? (opcional)<input id="w-n" maxlength="30" autocomplete="given-name"></label>
+  <button class="btn main" id="go">Continuar sin conexión</button><p class="note">No necesitas cuenta ni internet.</p>`;
+  $('#go').onclick=()=>{const n=$('#w-n').value.trim();ls.set('mc3_ok','1');start();D.name=n;save();render()}}
+function wipe(){if(confirm('¿Borrar todos los datos de este teléfono? No se puede deshacer.')){['mc3_data','mc3_ok','mc3_saved','mc2_ses'].forEach(k=>ls.del(k));D=null;location.reload()}}
 const dr=$('#dr'),dp=$('#dp');
-function menu(){const u=U().find(x=>x.id===UID)||{n:'',e:''},bal=D.accounts.reduce((s,a)=>s+abal(a),0),t0=+ls.get('mc2_ls_'+UID)||0;
+function menu(){const bal=D.accounts.reduce((s,a)=>s+abal(a),0),t0=+ls.get('mc3_saved')||0;
   const it=(k,i,t)=>`<button class="it ${V.view===k?'on':''}" data-m2="${k}">${ico(i,24)}<span>${t}</span></button>`;
   const fd=t=>{const d=new Date(t);return p2(d.getDate())+'/'+p2(d.getMonth()+1)+'/'+d.getFullYear()+' '+d.getHours()+':'+p2(d.getMinutes())};
-  dp.innerHTML=`<div class="pf"><span class="avt">${esc((u.n||'?').trim().charAt(0).toUpperCase())}</span><div><b>${esc(u.n)}</b><small>Balance: ${money(bal)}</small></div></div>
-  ${it('res','pie','Inicio')}${it('cta','wallet','Cuentas')}${it('gra','chart','Gráficos')}${it('cat','list','Categorías')}${it('rec','repeat','Pagos habituales')}${it('rem','bell','Recordatorios')}${it('cfg','gear','Ajustes')}${it('share','share','Compartir con amigos')}${it('rate','star','Valore la aplicación')}${it('help','mail','Contacte con el equipo de soporte')}
-  <button class="ft" data-m2="sync">${ico(SYI[SY],22)}<span>${isSrv()&&t0?fd(t0):SYT[SY]}</span></button>`;
+  dp.innerHTML=`<div class="pf"><span class="avt">${esc((D.name||'M').trim().charAt(0).toUpperCase())}</span><div><b>${esc(D.name||'Mis Cuentas')}</b><small>Balance: ${money(bal)}</small></div></div>
+  ${it('res','pie','Inicio')}${it('cta','wallet','Cuentas')}${it('gra','chart','Gráficos')}${it('cat','list','Categorías')}${it('rec','repeat','Pagos habituales')}${it('rem','bell','Recordatorios')}${it('cfg','gear','Ajustes')}
+  <div class="ft">${ico('phone',22)}<span>${t0?'Guardado '+fd(t0):'Guardado en este teléfono'}</span></div>`;
   dr.classList.add('open')}
 dr.addEventListener('click',e=>{const b=e.target.closest('[data-m2]');if(e.target===dr){dr.classList.remove('open');return}if(!b)return;const k=b.dataset.m2;dr.classList.remove('open');
-  if(k==='sync')syncNow();else if(k==='share')shareApp();else if(k==='rate')rateSheet();else if(k==='help')mailSupport();else{V.view=k;render();scrollTo(0,0)}});
+  V.view=k;render();scrollTo(0,0)});
 function exportCsv(){const q=s=>'"'+String(s).replace(/"/g,'""')+'"';
   const rows=[['Fecha','Hora','Tipo','Cuenta','Categoría','Nota','Monto'],...D.tx.slice().sort((a,b)=>a.ts.localeCompare(b.ts)).map(t=>[t.ts.slice(0,10),t.ts.slice(11,16),t.type,(accOf(t.acc)||{}).name||'',catOf(t.cat).name,t.note||'',t.amt])];
   const b=new Blob(['\ufeff'+rows.map(r=>r.map(q).join(';')).join('\n')],{type:'text/csv'}),a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='mis-cuentas.csv';a.click()}
-function logout(){ls.del('mc2_ses');D=null;authView('in')}
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&D){genRec();render()}});
 
-/* Google, pagos habituales, recordatorios y gráficos */
-const GLOGO='<svg width="20" height="20" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.8 2.4 30.3 0 24 0 14.6 0 6.5 5.4 2.6 13.2l7.9 6.1C12.4 13.6 17.7 9.5 24 9.5z"/><path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.7c-.6 3-2.3 5.5-4.8 7.2l7.5 5.8c4.4-4.1 7.1-10.1 7.1-17.5z"/><path fill="#FBBC05" d="M10.5 28.7a14.5 14.5 0 0 1 0-9.4l-7.9-6.1a24 24 0 0 0 0 21.6l7.9-6.1z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.5-5.8c-2.1 1.4-4.9 2.3-8.4 2.3-6.3 0-11.6-4.1-13.5-9.8l-7.9 6.1C6.5 42.6 14.6 48 24 48z"/></svg>';
-const googleBtn=()=>ON&&CFG.google?`<div class="sep">o</div><button class="btn gg" id="gg">${GLOGO} Continuar con Google</button>`:'';
-function googleIn(){if(!navigator.onLine){toast('Necesitas internet para entrar con Google.');return}location.href=CFG.url.replace(/\/$/,'')+'/auth/v1/authorize?provider=google&redirect_to='+encodeURIComponent(location.origin+location.pathname)}
-function toast(m){const d=document.createElement('div');d.className='toast';d.textContent=m;document.body.appendChild(d);setTimeout(()=>d.remove(),2800)}
+/* Pagos habituales, recordatorios y gráficos */
 const ICMAP={'Alimentación':'cart','Transporte':'bus','Hogar':'house','Servicios':'bulb','Salud':'heart','Ocio':'film','Compras':'bag','Salario':'briefcase','Ventas':'cash','Regalo':'gift'};
 function migrate(){D.rm=D.rm||{};D.rec=D.rec||[];D.rem=D.rem||[];
   D.cats.forEach(c=>{if(!c.icon){c.icon=ICMAP[c.name]||'tag';delete c.emoji}});D.accounts.forEach(a=>{if(!a.icon){a.icon='wallet';delete a.emoji}})}
@@ -302,13 +221,6 @@ function remSheet(id){const t=D.rem.find(x=>x.id===id),f=t?{...t}:{title:'',at:n
     $('#ok').onclick=()=>{sync(f);if(!f.title.trim()){$('#err').textContent='Escribe qué quieres recordar.';return}if(!f.at){$('#err').textContent='Elige la fecha y la hora.';return}
       const r={title:f.title.trim(),at:f.at,rep:f.rep,done:false,u:Date.now()};if(t)Object.assign(t,r);else D.rem.push({id:uid(),...r});save();closeSheet();render()};
     if(t)$('#del').onclick=()=>{rmv(id);D.rem=D.rem.filter(x=>x.id!==id);save();closeSheet();render()}})}
-async function shareApp(){const u=location.href.split('#')[0];
-  try{if(navigator.share)await navigator.share({title:'Mis Cuentas',text:'Controla tus ingresos y gastos con Mis Cuentas.',url:u});else{await navigator.clipboard.writeText(u);toast('Enlace copiado')}}catch(e){}}
-function mailTo(sub,body){if(!CFG.soporte){toast('Falta el correo de soporte en config.js');return}location.href='mailto:'+CFG.soporte+'?subject='+encodeURIComponent(sub)+'&body='+encodeURIComponent(body||'')}
-const mailSupport=()=>mailTo('Soporte de Mis Cuentas','');
-function rateSheet(){let n=5;const draw=()=>sheet(`<h3>Valore la aplicación</h3><div class="stars">${[1,2,3,4,5].map(i=>`<button data-s2="${i}" aria-label="${i} estrellas" class="${i<=n?'on':''}">${ico('star',32)}</button>`).join('')}</div><label>Comentario<input id="rc" maxlength="200" placeholder="Cuéntanos qué te parece"></label><div class="row"><button class="btn main" id="ok">Enviar</button></div>`,()=>{
-  box.querySelectorAll('[data-s2]').forEach(b=>b.onclick=()=>{const c=$('#rc').value;n=+b.dataset.s2;draw();$('#rc').value=c});
-  $('#ok').onclick=()=>{const c=$('#rc').value;closeSheet();mailTo('Valoración de Mis Cuentas: '+n+' de 5',c)}});draw()}
 
 /* Períodos */
 function range(){const n=new Date(),y=n.getFullYear(),m=n.getMonth(),o=V.off;let a,b;
@@ -341,11 +253,10 @@ function vOps(){const[a,b]=range(),ts=inR(a,b).sort((x,y)=>V.sort==='monto'?y.am
 function vCta(){return`<h2 style="margin-top:16px">Tus cuentas</h2>`+D.accounts.map(a=>`<button class="tx" data-ac="${a.id}"><span class="ic" style="background:${a.color};color:#101A23">${sym(a)}</span><span class="m"><b>${esc(a.name)}</b><span>Toca para editar</span></span><span class="a ${abal(a)<0?'r':''}">${money(abal(a))}</span></button>`).join('')+`<button class="btn alt" data-ac="new" style="width:100%;color:var(--am)">+ Nueva cuenta</button>`}
 function vCat(){const list=ty=>D.cats.filter(c=>c.type===ty).map(c=>`<button class="tx" data-ct="${c.id}"><span class="ic" style="background:${c.color}33;color:${c.color}">${sym(c)}</span><span class="m"><b>${esc(c.name)}</b></span></button>`).join('')+`<button class="btn alt" data-ct="new" data-ctype="${ty}" style="width:100%;color:var(--am)">+ Nueva categoría de ${ty==='gasto'?'gastos':'ingresos'}</button>`;
   return`<h2 style="margin-top:16px">Categorías de gastos</h2>${list('gasto')}<h2>Categorías de ingresos</h2>${list('ingreso')}`}
-function vCfg(){const u=U().find(x=>x.id===UID)||{n:'',e:''};
-  return`<div class="card"><b>${esc(u.n)}</b><div class="note" style="text-align:left;margin:4px 0 0">${esc(u.e)}</div></div>
+function vCfg(){return`<h2 style="margin-top:16px">Tu nombre</h2><label style="margin-top:8px"><input id="nm" maxlength="30" placeholder="Opcional" value="${esc(D.name||'')}"></label>
   <h2>Moneda</h2><label style="margin-top:8px"><select id="cur">${CURS.map(c=>`<option ${c===D.cur?'selected':''}>${c}</option>`).join('')}</select></label>
-  <h2>Datos</h2><button class="tx" id="syn">${ico('sync',20)}<span class="m"><b>Sincronizar ahora</b><span>${esc(SYT[SY])}</span></span></button><button class="tx" id="csv">${ico('download',20)}<span class="m"><b>Exportar a Excel (CSV)</b></span></button>
-  <button class="btn alt" id="out" style="width:100%;margin-top:22px">Cerrar sesión</button><p class="note">Tus datos están en este dispositivo. Funcionan sin internet.</p>`}
+  <h2>Datos</h2><button class="tx" id="csv">${ico('download',20)}<span class="m"><b>Exportar a Excel (CSV)</b></span></button>
+  <button class="btn alt" id="wipe" style="width:100%;margin-top:22px;color:var(--r)">Borrar todos los datos</button><p class="note">Tus datos están en este teléfono. Funcionan sin internet.</p>`}
 function render(){
   $('#bar').hidden=!(V.view==='res'||V.view==='ops');
   const[a,b]=range(),ts=inR(a,b),sm=ty=>ts.filter(t=>t.type===ty).reduce((s,t)=>s+t.amt,0);
@@ -414,16 +325,11 @@ document.addEventListener('click',e=>{const t=e.target.closest('button');if(!t||
   if(d.v){V.view=d.v;render();scrollTo(0,0)}else if(d.ty){V.ty=d.ty;render()}else if(d.p){V.per=d.p;V.off=0;render()}
   else if(d.o){V.off+=+d.o;render()}else if(d.a){V.acc=d.a;render()}else if(d.s){V.sort=V.sort==='monto'?'fecha':'monto';render()}
   else if(d.tx)txSheet(d.tx);else if(d.ac)accSheet(d.ac==='new'?undefined:d.ac);else if(d.ct)catSheet(d.ct==='new'?undefined:d.ct,d.ctype);
-  else if(t.id==='fab')({rec:()=>recSheet(),rem:()=>remSheet(),cat:()=>catSheet(undefined,'gasto'),cta:()=>accSheet()}[V.view]||(()=>txSheet()))();else if(d.rd)remDone(d.rd);else if(d.rc)recSheet(d.rc==='new'?undefined:d.rc);else if(d.rm2)remSheet(d.rm2==='new'?undefined:d.rm2);else if(t.id==='out')logout();else if(t.id==='csv')exportCsv();else if(t.id==='syn')syncNow();else if(t.id==='menu'||t.id==='sy')menu()});
-document.addEventListener('change',e=>{const t=e.target;if(!D)return;if(t.id==='d1'){V.from=t.value;render()}else if(t.id==='d2'){V.to=t.value;render()}else if(t.id==='cur'){D.cur=t.value;D.curU=Date.now();save();render()}});
+  else if(t.id==='fab')({rec:()=>recSheet(),rem:()=>remSheet(),cat:()=>catSheet(undefined,'gasto'),cta:()=>accSheet()}[V.view]||(()=>txSheet()))();else if(d.rd)remDone(d.rd);else if(d.rc)recSheet(d.rc==='new'?undefined:d.rc);else if(d.rm2)remSheet(d.rm2==='new'?undefined:d.rm2);else if(t.id==='wipe')wipe();else if(t.id==='csv')exportCsv();else if(t.id==='menu')menu()});
+document.addEventListener('change',e=>{const t=e.target;if(!D)return;if(t.id==='d1'){V.from=t.value;render()}else if(t.id==='d2'){V.to=t.value;render()}else if(t.id==='nm'){D.name=t.value.trim();save()}else if(t.id==='cur'){D.cur=t.value;D.curU=Date.now();save();render()}});
 
 document.querySelectorAll('[data-i]').forEach(e=>e.innerHTML=ico(e.dataset.i));
-(async()=>{const h=new URLSearchParams(location.hash.slice(1));
-  if(ON&&h.get('error_description')){history.replaceState(null,'',location.pathname+location.search);authView('in');$('#err').textContent='No se pudo entrar con Google. Intenta de nuevo.';return}
-  if(ON&&h.get('access_token')){history.replaceState(null,'',location.pathname+location.search);
-    try{const t={access_token:h.get('access_token'),refresh_token:h.get('refresh_token'),expires_in:+h.get('expires_in')||3600};t.user=await api('GET','/auth/v1/user',null,t.access_token);await srvAfterLogin(t);return}
-    catch(e){authView('in');$('#err').textContent='No se pudo entrar con Google. Intenta de nuevo.';return}}
-  const sid=ls.get('mc2_ses');if(sid&&U().some(u=>u.id===sid))start(sid);else authView('in')})();
+if(ls.get('mc3_ok')||ls.get('mc3_data')||ls.get('mc2_ses'))start();else welcome();
 if('serviceWorker'in navigator&&/^https?:$/.test(location.protocol))navigator.serviceWorker.register('sw.js').catch(()=>{});
 </script>
 </body>
